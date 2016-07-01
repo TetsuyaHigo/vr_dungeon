@@ -78,6 +78,18 @@ WebVRConfig = {
 
 <script>
 
+// マップデータ
+var map_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 1, 1, 1, 1, 1, 0,
+				1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 1, 1, 0,
+				0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 1, 1, 1, 0, 1, 1, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+				0, 1, 1, 0, 1, 1, 1, 1, 0, 0,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
+
 // レンダラを生成
 var renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -106,68 +118,80 @@ var manager = new WebVRManager(renderer, effect);
 //////////////////////////////////////////////////
 // 各種オブジェクトのセットアップ
 
-var backLoader = new THREE.TextureLoader();
-var back_material;
-var back_material2;
+// テクスチャ読み込み
+var texFloor = new THREE.TextureLoader().load( "img/floor.png" );
+texFloor.wrapS = THREE.RepeatWrapping;
+texFloor.wrapT = THREE.RepeatWrapping;
+texFloor.repeat.set(20, 20);
+    
+var texWall = new THREE.TextureLoader().load( "img/wall.png" );
+texWall.wrapS = THREE.RepeatWrapping;
+texWall.wrapT = THREE.RepeatWrapping;
+texWall.repeat.set(2, 2);
 
 // バンプマップを読んでおく
-var mapHeight = new THREE.TextureLoader().load( "img/floor_bump.png" );
-mapHeight.anisotropy = 4;
-mapHeight.repeat.set( 20, 20 );
-mapHeight.offset.set( 0, 0 );
-mapHeight.wrapS = mapHeight.wrapT = THREE.RepeatWrapping;
+var bumpFloor = new THREE.TextureLoader().load( "img/floor_bump.png" );
+bumpFloor.anisotropy = 4;
+bumpFloor.repeat.set( 20, 20 );
+bumpFloor.wrapS = bumpFloor.wrapT = THREE.RepeatWrapping;
+
+var bumpWall = new THREE.TextureLoader().load( "img/wall_bump.png" );
+bumpWall.anisotropy = 4;
+bumpWall.repeat.set( 2, 2 );
+bumpWall.wrapS = bumpWall.wrapT = THREE.RepeatWrapping;
 				
-// 床
-backLoader.load('img/floor.png', onBackTextureLoaded);
-function onBackTextureLoaded(texture) {
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(20, 20);
-
-   	var back_geometry = new THREE.PlaneGeometry( 20, 20, 10, 10 );
+// 床と天井
+for (var i = 0; i < 2; ++ i)
+{
+   	var geometry = new THREE.PlaneGeometry( 20, 20, 10, 10 );
 	
-    back_material = new THREE.MeshPhongMaterial({
-        map: texture,
+    var material = new THREE.MeshPhongMaterial({
+        map: texFloor,
         color: 0xffffff,
         specular: 0x222222,
 		shininess: 25,
-        bumpMap: mapHeight,
+        bumpMap: bumpFloor,
 		bumpScale: 0.1,
 		side: THREE.DoubleSide
     });
 	
-    var backmesh = new THREE.Mesh(back_geometry, back_material);
-    backmesh.position.y = -1.5;
-    backmesh.rotation.x = 3.14 / 2;
+    var mesh = new THREE.Mesh(geometry, material);
+    mesh.position.y = i == 0 ? -1.5 : 1.5;
+    mesh.rotation.x = 3.14 / 2;
     
-    scene.add(backmesh);
+    scene.add(mesh);
 }
 
-// 天井
-backLoader.load('img/floor.png', onBackTextureLoaded2);
-function onBackTextureLoaded2(texture) {
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(20, 20);
-
-   	var back_geometry = new THREE.PlaneGeometry( 20, 20, 10, 10 );
-	
-    back_material2 = new THREE.MeshPhongMaterial({
-        map: texture,
-        color: 0xffffff,
-        specular: 0x222222,
-		shininess: 25,
-        bumpMap: mapHeight,
-		bumpScale: 0.1,
-		side: THREE.DoubleSide
-    });
-	
-    var backmesh = new THREE.Mesh(back_geometry, back_material2);
-    backmesh.position.y = 1.5;
-    backmesh.rotation.x = 3.14 / 2;
-    
-    scene.add(backmesh);
+// 壁
+for (var z = 0; z < 10; ++ z)
+{
+	for (var x = 0; x < 10; ++ x)
+	{
+		if (map_data[z * 10 + x] == 1)
+		{
+			var geometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
+		
+    		var material = new THREE.MeshPhongMaterial({
+        		map: texWall,
+        		color: 0xffffff,
+        		specular: 0x222222,
+				shininess: 25,
+        		bumpMap: bumpWall,
+				bumpScale: 0.1,
+				side: THREE.FrontSide
+    		});
+		
+    		var mesh = new THREE.Mesh(geometry, material);
+    	
+    		mesh.position.x = (x - 5) * 2.0;
+    		mesh.position.y = 0;
+    		mesh.position.z = (z - 5) * 2.0;
+    	
+    		scene.add(mesh);
+    	}
+	}
 }
+
 
 // アンビエントライト
 var ambient = new THREE.AmbientLight( 0x111111 );
@@ -178,8 +202,9 @@ for (var z = 0; z < 3; ++ z)
 {
 	for (var x = 0; x < 3; ++ x)
 	{
-		var light_p = new THREE.PointLight(0xffffff, 0.2);
-		light_p.position.set(10.0 * (x - 1), 0.0, 10.0 * (z - 1));
+		var light_p = new THREE.PointLight(0xffffff, 0.4);
+		light_p.position.set(5.0 * (x - 1), 0.0, 5.0 * (z - 1));
+		//light_p.cast_shadow = true;
 		scene.add(light_p);
 	}
 }
