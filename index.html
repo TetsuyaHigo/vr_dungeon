@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no">
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>VR-Dungeon</title>
+<style>
+body {
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    color: #fff;
+    margin: 0px;
+    padding: 0;
+    overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+
+</body>
+
+<script>
+/*
+ * Debug parameters.
+ */
+WebVRConfig = {
+  /**
+   * webvr-polyfill configuration
+   */
+
+  // Forces availability of VR mode.
+  //FORCE_ENABLE_VR: true, // Default: false.
+  // Complementary filter coefficient. 0 for accelerometer, 1 for gyro.
+  //K_FILTER: 0.98, // Default: 0.98.
+  // How far into the future to predict during fast motion.
+  //PREDICTION_TIME_S: 0.040, // Default: 0.040 (in seconds).
+  // Flag to disable touch panner. In case you have your own touch controls
+  //TOUCH_PANNER_DISABLED: true, // Default: false.
+  // Enable yaw panning only, disabling roll and pitch. This can be useful for
+  // panoramas with nothing interesting above or below.
+  //YAW_ONLY: true, // Default: false.
+  // Enable the deprecated version of the API (navigator.getVRDevices).
+  //ENABLE_DEPRECATED_API: true, // Default: false.
+  // Scales the recommended buffer size reported by WebVR, which can improve
+  // performance. Making this very small can lower the effective resolution of
+  // your scene.
+  BUFFER_SCALE: 0.5, // default: 1.0
+  // Allow VRDisplay.submitFrame to change gl bindings, which is more
+  // efficient if the application code will re-bind it's resources on the
+  // next frame anyway.
+  // Dirty bindings include: gl.FRAMEBUFFER_BINDING, gl.CURRENT_PROGRAM,
+  // gl.ARRAY_BUFFER_BINDING, gl.ELEMENT_ARRAY_BUFFER_BINDING,
+  // and gl.TEXTURE_BINDING_2D for texture unit 0
+  // Warning: enabling this might lead to rendering issues.
+  //DIRTY_SUBMIT_FRAME_BINDINGS: true // default: false
+};
+</script>
+
+<script src="js/es6-promise.js"></script>
+<script src="js/three.min.js"></script>
+
+<script src="js/ColladaLoader.js"></script>
+<script src="js/collada/Animation.js"></script>
+<script src="js/collada/AnimationHandler.js"></script>
+<script src="js/collada/KeyFrameAnimation.js"></script>
+		
+<script src="js/VRControls.js"></script>
+<script src="js/VREffect.js"></script>
+<script src="js/webvr-polyfill.js"></script>
+<script src="js/webvr-manager.js"></script>
+</head>
+
+<body>
+
+<script>
+
+// レンダラを生成
+var renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setPixelRatio(window.devicePixelRatio);
+
+document.body.appendChild(renderer.domElement);
+
+// シーンを生成
+var scene = new THREE.Scene();
+
+// フォグ設定
+scene.fog = new THREE.FogExp2( 0x000000, 0.2 );
+
+// カメラを生成
+var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+
+// VR用コントローラを生成
+var controls = new THREE.VRControls(camera);
+
+// VR用エフェクトを生成
+var effect = new THREE.VREffect(renderer);
+effect.setSize(window.innerWidth, window.innerHeight);
+
+// VRマネージャの生成
+var manager = new WebVRManager(renderer, effect);
+
+//////////////////////////////////////////////////
+// 各種オブジェクトのセットアップ
+
+var backLoader = new THREE.TextureLoader();
+var back_material;
+var back_material2;
+
+// バンプマップを読んでおく
+var mapHeight = new THREE.TextureLoader().load( "img/floor_bump.png" );
+mapHeight.anisotropy = 4;
+mapHeight.repeat.set( 20, 20 );
+mapHeight.offset.set( 0, 0 );
+mapHeight.wrapS = mapHeight.wrapT = THREE.RepeatWrapping;
+				
+// 床
+backLoader.load('img/floor.png', onBackTextureLoaded);
+function onBackTextureLoaded(texture) {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(20, 20);
+
+   	var back_geometry = new THREE.PlaneGeometry( 20, 20, 10, 10 );
+	
+    back_material = new THREE.MeshPhongMaterial({
+        map: texture,
+        color: 0xffffff,
+        specular: 0x222222,
+		shininess: 25,
+        bumpMap: mapHeight,
+		bumpScale: 0.1,
+		side: THREE.DoubleSide
+    });
+	
+    var backmesh = new THREE.Mesh(back_geometry, back_material);
+    backmesh.position.y = -1.5;
+    backmesh.rotation.x = 3.14 / 2;
+    
+    scene.add(backmesh);
+}
+
+// 天井
+backLoader.load('img/floor.png', onBackTextureLoaded2);
+function onBackTextureLoaded2(texture) {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(20, 20);
+
+   	var back_geometry = new THREE.PlaneGeometry( 20, 20, 10, 10 );
+	
+    back_material2 = new THREE.MeshPhongMaterial({
+        map: texture,
+        color: 0xffffff,
+        specular: 0x222222,
+		shininess: 25,
+        bumpMap: mapHeight,
+		bumpScale: 0.1,
+		side: THREE.DoubleSide
+    });
+	
+    var backmesh = new THREE.Mesh(back_geometry, back_material2);
+    backmesh.position.y = 1.5;
+    backmesh.rotation.x = 3.14 / 2;
+    
+    scene.add(backmesh);
+}
+
+// アンビエントライト
+var ambient = new THREE.AmbientLight( 0x111111 );
+scene.add( ambient );
+
+// ポイントライト
+for (var z = 0; z < 3; ++ z)
+{
+	for (var x = 0; x < 3; ++ x)
+	{
+		var light_p = new THREE.PointLight(0xffffff, 0.2);
+		light_p.position.set(10.0 * (x - 1), 0.0, 10.0 * (z - 1));
+		scene.add(light_p);
+	}
+}
+
+
+//////////////////////////////////////////////////
+
+// アニメーションループ
+var lastRender = 0;
+var time = 0;
+function animate(timestamp) {
+    var delta = Math.min(timestamp - lastRender, 500);
+    lastRender = timestamp;
+	
+    // VRコントローラのupdate
+    controls.update();
+
+    // VRマネージャを通してシーンをレンダリング
+    manager.render(scene, camera, timestamp);
+
+    // アニメーションループ
+    requestAnimationFrame(animate);
+}
+
+// アニメーションの開始
+animate(performance ? performance.now() : Date.now());
+
+</script>
+    
+</body>
+</html>
